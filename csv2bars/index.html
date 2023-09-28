@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>CSV to Bar Chart</title>
+  <!-- Include Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Include PapaParse for CSV parsing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+</head>
+<body>
+  <div id="chart-container" style="margin-bottom: 20px;">
+    <!-- Chart.js will render the chart here -->
+  </div>
+  <div style="text-align: center;">
+    <h2>Insert CSV Data Below:</h2>
+    <textarea id="csv-text" rows="10" cols="50" style="width: 100%;">
+Criteria;Threshold;January;February;March;April;May;June;July;August;September;October;November;December
+OPC-001 - Stop/Start times (in seconds);300;;194;191;185;216;219;216;226;;;;;
+OPC-002 - Success Rate of Stop/Start;95%;;100%;91%;98%;100%;100%;100%;100%;;;;;
+OPC-004 - Number of Core Dumps;150;;52;20;588;16;25;16;548;;;;;
+OPC-005 - Number of Internal Errors;1.00%;;2.96%;2.72%;3.32%;3.43%;2.58%;3.43%;4.77%;;;;;
+OPC-???-Critical Errors;0.00010%;;0.00009%;0.00073%;0.00002%;0.00001%;0.00002%;0.00001%;0.00049%;;;;;
+OPC-006 - Number of Pri-A loads;20%;;0%;20%;0%;0%;0%;14%;11%;;;;;
+OPC-007 - Number of Software Fallbacks;8%;;0%;0%;12%;0%;0%;0%;11%;;;;;
+OPC-008 - Middleware Version;100%;;100%;100%;100%;100%;100%;100%;100%;;;;;
+OPC-009 - Automatable Software Loads;95%;;100%;100%;100%;100%;100%;100%;100%;;;;;
+OPC-013 - Number of DB sessions;2300;;65;64;63;74;74;No data;No data;;;;;
+OPC-014 - Database size (in TeraBytes);156;;3.65;3.65;3.65;3.65;3.65;3.65;3.65;;;;;</textarea>
+    <br>
+    <button onclick="generateCharts()">Generate Charts</button>
+  </div>
+
+  <script>
+
+    function parseValue(value) {
+      // Check if the value is empty or contains '%' and remove it
+      if (typeof value === 'string') {
+        if (value === '') {
+          return 0;
+        } else if (value.includes('%')) {
+          return parseFloat(value.replace('%', ''));
+        }
+      }
+      // If '%' is not present or value is already a number, return it as is
+      return parseFloat(value);
+    }
+
+
+    function generateCharts() {
+      // Get CSV data from the textarea
+      const csvData = document.getElementById('csv-text').value;
+
+      // Clear existing chart containers
+      document.getElementById('chart-container').innerHTML = '';
+
+      // Parse CSV data
+      Papa.parse(csvData, {
+        header: true,
+        dynamicTyping: true,
+        complete: function(results) {
+          const data = results.data;
+
+          // Iterate through rows in the data
+          data.forEach(function(row, index) {
+            const title = row['Criteria'];
+            const threshold = parseValue(row['Threshold']);
+
+            // Extract measurement labels and values dynamically
+            const measurements = Object.keys(row).filter(key => key !== 'Criteria' && key !== 'Trend' && key !== 'Threshold');
+            //const measurementValues = measurements.map(category => row[category]);
+            const measurementValues = measurements.map(category => parseValue(row[category])); // Parse and remove '%' if present
+            // Remove % and parse as float
+
+
+            const chartWrapper = document.createElement('div');
+            chartWrapper.style.display = 'inline-block'; // Display charts in two columns
+            chartWrapper.style.width = '400px'; // Set the chart width
+            chartWrapper.style.height = '200px'; // Set the chart height
+            chartWrapper.style.margin = '10px'; // Add margin between charts
+
+            const chartContainer = document.createElement('div');
+            chartContainer.style.width = '400px'; // Set the chart width
+            chartContainer.style.height = '200px'; // Set the chart height
+
+            const canvas = document.createElement('canvas');
+            canvas.id = `chart-${index}`;
+            canvas.width = 400;
+            canvas.height = 200;
+
+            chartContainer.appendChild(canvas);
+            chartWrapper.appendChild(chartContainer);
+
+            // Append the chart container to the chart-container div
+            document.getElementById('chart-container').appendChild(chartWrapper);
+
+            const bars = measurementValues.map(value => (value > threshold ? 'blue' : 'skyblue'));
+
+            const ctx = canvas.getContext('2d');
+
+            new Chart(ctx, {
+              type: 'bar',
+              data: {
+                labels: measurements,
+                datasets: [
+                  {
+                    label: title,
+                    data: measurementValues,
+                    backgroundColor: bars,
+                  },
+                  {
+                    label: 'Threshold ' + threshold,
+                    data: new Array(measurementValues.length).fill(threshold),
+                    borderColor: 'blue',
+                    type: 'line',
+                    borderWidth: 2,
+                    borderDash: [5, 5], // Make the line dashed
+                    fill: false,
+                  },
+                ],
+              },
+              options: {
+                scales: {
+                  y: {
+                    beginAtZero: true,
+                  },
+                },
+              },
+            });
+          });
+        },
+      });
+    }
+  </script>
+</body>
+</html>
